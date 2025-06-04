@@ -56,11 +56,24 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   initAudioQuery() async {
-    if (await Permission.audio.isGranted) {
+    var res = await [
+      Permission.storage,
+      Permission.mediaLibrary,
+      Permission.accessMediaLocation,
+    ].request();
+    print(res.toString());
+    if (await Permission.storage.isGranted) {
       final songs = await _audioQuery.querySongs();
       setState(() {
         _songs = songs;
       });
+    } else {
+      var state = await Permission.audio.request();
+      if (state.isGranted) {
+        initAudioQuery();
+      } else {
+        print("Failed to access Audio");
+      }
     }
   }
 
@@ -84,10 +97,45 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
+            if (_songs.isNotEmpty)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: () async {
+                      if (_isPlaying) {
+                        await _player.pause();
+                        setState(() {
+                          _isPlaying = false;
+                        });
+                      } else {
+                        await _player.play();
+                        setState(() {
+                          _isPlaying = true;
+                        });
+                      }
+                    },
+                    icon: Icon(
+                      _isPlaying
+                          ? Icons.pause_circle_filled
+                          : Icons.play_circle_filled,
+                    ),
+                  ),
+                ],
+              ),
             _songs.isEmpty
                 ? Text("You Have No Songs")
                 : Expanded(
-                    child: ListView.builder(itemBuilder: (ctx, index) {}),
+                    child: ListView.builder(
+                      itemCount: _songs.length,
+                      itemBuilder: (ctx, index) {
+                        final song = _songs[index];
+                        return ListTile(
+                          title: Text(song.title),
+                          onTap: () => playSong(song.uri!, index),
+                        );
+                      },
+                    ),
                   ),
           ],
         ),
